@@ -1,0 +1,498 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoadPulse Dashboard</title>
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    >
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+        }
+
+        header {
+            padding: 18px 24px;
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        header h2 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        header p {
+            color: #94a3b8;
+            font-size: 13px;
+            margin: 6px 0 0;
+        }
+
+        .connection {
+            font-size: 12px;
+            color: #fbbf24;
+            white-space: nowrap;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            padding: 18px 24px;
+        }
+
+        .stat {
+            background: #1e293b;
+            border: 1px solid #334155;
+            padding: 16px;
+            border-radius: 10px;
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .stat-value {
+            font-size: 25px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        .main {
+            display: grid;
+            grid-template-columns: minmax(0, 1.8fr) minmax(300px, 1fr);
+            gap: 16px;
+            padding: 0 24px 24px;
+            min-height: 480px;
+        }
+
+        .panel {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-header h3 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        #map {
+            height: 520px;
+            width: 100%;
+            background: #111827;
+        }
+
+        #feed-list {
+            padding: 12px;
+            max-height: 520px;
+            overflow-y: auto;
+        }
+
+        .card {
+            background: #0f172a;
+            padding: 13px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #64748b;
+        }
+
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .device {
+            font-size: 13px;
+            font-weight: bold;
+            overflow-wrap: anywhere;
+        }
+
+        .condition {
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .details {
+            color: #cbd5e1;
+            font-size: 12px;
+            line-height: 1.8;
+            margin-top: 8px;
+            overflow-wrap: anywhere;
+        }
+
+        .empty {
+            color: #94a3b8;
+            font-size: 13px;
+            padding: 20px 8px;
+            text-align: center;
+        }
+
+        .refresh {
+            color: #94a3b8;
+            font-size: 11px;
+        }
+
+        @media (max-width: 850px) {
+            .main {
+                grid-template-columns: 1fr;
+            }
+
+            #map {
+                height: 400px;
+            }
+
+            #feed-list {
+                max-height: 420px;
+            }
+        }
+
+        @media (max-width: 520px) {
+            header {
+                padding: 16px;
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .stats {
+                padding: 12px 16px;
+                gap: 8px;
+            }
+
+            .stat {
+                padding: 12px 8px;
+            }
+
+            .stat-value {
+                font-size: 20px;
+            }
+
+            .stat-label {
+                font-size: 11px;
+            }
+
+            .main {
+                padding: 0 16px 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div>
+            <h2>RoadPulse</h2>
+            <p>Monitoring kondisi jalan berbasis sensor smartphone</p>
+        </div>
+        <div id="connection" class="connection">
+            Menghubungkan ke API...
+        </div>
+    </header>
+
+    <section class="stats">
+        <div class="stat">
+            <div class="stat-label">Total Laporan</div>
+            <div class="stat-value" id="total-reports">0</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">Perangkat Aktif dalam Data</div>
+            <div class="stat-value" id="total-devices">0</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">Lokasi GPS Valid</div>
+            <div class="stat-value" id="total-locations">0</div>
+        </div>
+    </section>
+
+    <main class="main">
+        <section class="panel">
+            <div class="panel-header">
+                <h3>Peta Laporan Jalan</h3>
+                <span class="refresh">Refresh otomatis: 2 detik</span>
+            </div>
+            <div id="map"></div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h3>Log Telemetri Masuk</h3>
+                <span id="last-update" class="refresh">Belum ada data</span>
+            </div>
+
+            <div id="feed-list">
+                <div class="empty">Menunggu data dari HP...</div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Inisialisasi peta
+        const map = L.map("map").setView([-7.0505, 110.4371], 13);
+
+        L.tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            {
+                attribution: "&copy; OpenStreetMap contributors",
+                maxZoom: 19
+            }
+        ).addTo(map);
+
+        // Warna berdasarkan hasil klasifikasi rule-based
+        const colors = {
+            Normal: "#22c55e",
+            Bumpy: "#eab308",
+            Pothole: "#f97316",
+            Impact: "#ef4444"
+        };
+
+        const markers = new Map();
+        let firstValidLocation = true;
+        let previousSignature = "";
+
+        const feed = document.getElementById("feed-list");
+        const connection = document.getElementById("connection");
+
+        function validCoordinate(value, min, max) {
+            if (value === null || value === undefined || value === "") {
+                return false;
+            }
+
+            const number = Number(value);
+
+            return Number.isFinite(number) &&
+                   number >= min &&
+                   number <= max;
+        }
+
+        function formatNumber(value, digits = 3) {
+            const number = Number(value);
+
+            return value !== null &&
+                   value !== undefined &&
+                   value !== "" &&
+                   Number.isFinite(number)
+                ? number.toFixed(digits)
+                : "-";
+        }
+
+        function makeText(tag, className, value) {
+            const element = document.createElement(tag);
+            element.className = className;
+            element.textContent = value;
+            return element;
+        }
+
+        function getCondition(item) {
+            return item.condition || "Menunggu klasifikasi";
+        }
+
+        function getColor(condition) {
+            return colors[condition] || "#38bdf8";
+        }
+
+        function updateMap(item) {
+            const lat = Number(item.lat);
+            const lng = Number(item.lng);
+
+            if (
+                !validCoordinate(item.lat, -90, 90) ||
+                !validCoordinate(item.lng, -180, 180)
+            ) {
+                return;
+            }
+
+            const key = `${lat},${lng}`;
+            const condition = getCondition(item);
+            const color = getColor(condition);
+
+            const popup = document.createElement("div");
+            const title = document.createElement("strong");
+            title.textContent = condition;
+
+            const details = document.createElement("div");
+            details.textContent =
+                `Perangkat: ${item.device_id || "-"}\n` +
+                `Acceleration RMS: ${formatNumber(item.accel_rms, 4)}\n` +
+                `Gyroscope RMS: ${formatNumber(item.gyro_rms, 4)}`;
+
+            details.style.whiteSpace = "pre-line";
+            popup.append(title, details);
+
+            if (!markers.has(key)) {
+                const marker = L.circleMarker([lat, lng], {
+                    radius: 8,
+                    fillColor: color,
+                    color: "#ffffff",
+                    weight: 1,
+                    fillOpacity: 0.85
+                }).addTo(map);
+
+                marker.bindPopup(popup);
+                markers.set(key, marker);
+
+                if (firstValidLocation) {
+                    map.setView([lat, lng], 16);
+                    firstValidLocation = false;
+                }
+            } else {
+                const marker = markers.get(key);
+                marker.setStyle({ fillColor: color });
+                marker.setPopupContent(popup);
+            }
+        }
+
+        function renderFeed(items) {
+            feed.replaceChildren();
+
+            if (items.length === 0) {
+                feed.appendChild(
+                    makeText("div", "empty", "Belum ada laporan telemetri.")
+                );
+                return;
+            }
+
+            // Data terbaru ditampilkan di bagian atas
+            [...items].reverse().forEach(item => {
+                const condition = getCondition(item);
+                const color = getColor(condition);
+
+                const card = document.createElement("div");
+                card.className = "card";
+                card.style.borderLeftColor = color;
+
+                const top = document.createElement("div");
+                top.className = "card-top";
+
+                top.appendChild(
+                    makeText("span", "device", item.device_id || "Perangkat tidak diketahui")
+                );
+
+                const conditionLabel = makeText("span", "condition", condition);
+                conditionLabel.style.color = color;
+                top.appendChild(conditionLabel);
+
+                const details = document.createElement("div");
+                details.className = "details";
+
+                const rms = formatNumber(item.accel_rms);
+                const gyro = formatNumber(item.gyro_rms);
+                const lat = validCoordinate(item.lat, -90, 90)
+                    ? formatNumber(item.lat, 6) : "-";
+                const lng = validCoordinate(item.lng, -180, 180)
+                    ? formatNumber(item.lng, 6) : "-";
+
+                details.textContent =
+                    `Acceleration RMS: ${rms}\n` +
+                    `Gyroscope RMS: ${gyro}\n` +
+                    `Latitude: ${lat}\n` +
+                    `Longitude: ${lng}\n` +
+                    `Akurasi GPS: ${formatNumber(item.accuracy, 1)} m`;
+
+                details.style.whiteSpace = "pre-line";
+
+                card.append(top, details);
+                feed.appendChild(card);
+            });
+        }
+
+        async function fetchData() {
+            try {
+                const response = await fetch("/api/data", {
+                    cache: "no-store"
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                // Mendukung API yang mengembalikan array langsung
+                // atau object dengan properti reports/data.
+                const items = Array.isArray(result)
+                    ? result
+                    : Array.isArray(result.reports)
+                        ? result.reports
+                        : Array.isArray(result.data)
+                            ? result.data
+                            : null;
+
+                if (!items) {
+                    throw new Error(
+                        "Format API tidak sesuai: seharusnya array laporan."
+                    );
+                }
+
+                connection.textContent = "● API terhubung";
+                connection.style.color = "#22c55e";
+
+                document.getElementById("total-reports").textContent =
+                    items.length;
+
+                document.getElementById("total-devices").textContent =
+                    new Set(items.map(item => item.device_id).filter(Boolean)).size;
+
+                document.getElementById("total-locations").textContent =
+                    items.filter(item =>
+                        validCoordinate(item.lat, -90, 90) &&
+                        validCoordinate(item.lng, -180, 180)
+                    ).length;
+
+                // Perbarui peta dan daftar
+                items.forEach(updateMap);
+                renderFeed(items);
+
+                document.getElementById("last-update").textContent =
+                    "Update " + new Date().toLocaleTimeString("id-ID");
+
+                previousSignature = JSON.stringify(items);
+            } catch (error) {
+                connection.textContent = "● API bermasalah";
+                connection.style.color = "#ef4444";
+
+                console.error("Gagal mengambil data RoadPulse:", error);
+
+                document.getElementById("last-update").textContent =
+                    "Gagal memperbarui data";
+            }
+        }
+
+        fetchData();
+        setInterval(fetchData, 2000);
+    </script>
+</body>
+</html>
