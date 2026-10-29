@@ -11,14 +11,14 @@ import paho.mqtt.client as mqtt
 # =========================
 # KONFIGURASI
 # =========================
-PROJECT_ID = "roadpulse_kelompok_01"
+PROJECT_ID = "roadpulse_kelompok_06"
 MQTT_HOST = "broker.hivemq.com"
 MQTT_PORT = 8883
 TOPIC_SUB = f"roadpulse/{PROJECT_ID}/edge/+/telemetry"
 
 WINDOW_SIZE = 10
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="Halaman")
 
 road_reports = []
 sample_windows = defaultdict(list)

@@ -155,7 +155,7 @@ Pastikan dependensi backend yang digunakan, termasuk Flask dan Paho MQTT, tercan
 Konfigurasi backend saat ini menggunakan:
 
 ```python
-PROJECT_ID = "roadpulse_kelompok_01"
+PROJECT_ID = "roadpulse_kelompok_06"
 MQTT_HOST = "broker.hivemq.com"
 MQTT_PORT = 8883
 TOPIC_SUB = f"roadpulse/{PROJECT_ID}/edge/+/telemetry"
